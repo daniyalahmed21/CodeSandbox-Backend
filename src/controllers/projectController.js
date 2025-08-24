@@ -1,20 +1,11 @@
-import fs from "fs";
-import uuid4 from "uuid4";
-import { promisify } from "node:util";
-import child_process from "node:child_process";
+import {
+  getProjectTreeService,
+  ProjectService,
+} from "../services/projectService.js";
 
-const exec = promisify(child_process.exec);
-
-async function createProjectController(req, res) {
+export async function createProjectController(req, res) {
   try {
-    const projectId = uuid4();
-
-    await fs.promises.mkdir(`./projects/${projectId}`, { recursive: true });
-
-    const { stdout, stderr } = await exec(
-      "npm create vite@latest sandbox -- --template react",
-      { cwd: `./projects/${projectId}` }
-    );
+    const projectId = ProjectService();
 
     res.json({
       message: "Project Created",
@@ -26,4 +17,11 @@ async function createProjectController(req, res) {
   }
 }
 
-export default createProjectController;
+export async function getProjectTree(req, res) {
+  const tree = await getProjectTreeService(req.params.id);
+  res.status(200).json({
+    data: tree,
+    success: true,
+    message: "successfully created tree",
+  });
+}
