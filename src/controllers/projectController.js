@@ -5,8 +5,7 @@ import {
 
 export async function createProjectController(req, res) {
   try {
-    const projectId = ProjectService();
-
+    const projectId = await ProjectService();
     res.json({
       message: "Project Created",
       projectId,

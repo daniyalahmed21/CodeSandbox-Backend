@@ -13,7 +13,6 @@ export async function ProjectService() {
     "npm create vite@latest sandbox -- --template react",
     { cwd: `./projects/${projectId}` }
   );
-
   return projectId;
 }
 
