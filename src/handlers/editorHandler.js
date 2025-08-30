@@ -71,4 +71,16 @@ export default function handleEditorSocketEvents(socket) {
           });
     }
   });
+  socket.on("deleteFolder", async ({ pathOfFileOrFolder }) => {
+    try {
+      const response = await fs.rmdir(pathOfFileOrFolder,{recursive:true});
+      socket.emit("deleteFolderSuccess", () => {
+        data: "Folder deletion successful";
+      });
+    } catch (error) {
+        socket.emit("error", () => {
+            data: "Error while deleting folder";
+          });
+    }
+  });
 }
