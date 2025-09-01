@@ -1,86 +1,71 @@
 import fs from "fs/promises";
 
 export default function handleEditorSocketEvents(socket) {
+  const emitSuccess = (event, message) => {
+    socket.emit(event, { data: message });
+  };
+
+  const emitError = (event, message) => {
+    socket.emit(event || "error", { data: message });
+  };
+
   socket.on("writeFile", async ({ data, pathOfFileOrFolder }) => {
     try {
-      const response = await fs.writeFile(pathOfFileOrFolder, data);
-      socket.emit("writeFileSuccess", () => {
-        data: "File written success";
-      });
-    } catch (error) {
-      socket.emit("Error", () => {
-        data: "Error while writing file";
-      });
+      await fs.writeFile(pathOfFileOrFolder, data);
+      emitSuccess("writeFileSuccess", "File written successfully");
+    } catch {
+      emitError("writeFileError", "Error while writing file");
     }
   });
 
   socket.on("createFile", async ({ pathOfFileOrFolder }) => {
-    const isFileAlreadyPresent = fs.stat(pathOfFileOrFolder);
-    if (isFileAlreadyPresent) {
-      socket.emit("error", () => {
-        data: "File Already present";
-      });
-      return;
-    }
     try {
-      await fs.writeFile(pathOfFileOrFolder, "");
-      socket.emit("createFileSuccess", () => {
-        data: "file creation successful";
-      });
-    } catch (error) {
-      socket.emit("error", () => {
-        data: "Error while creating file";
-      });
+      await fs.access(pathOfFileOrFolder); // check existence
+      emitError("createFileError", "File already present");
+    } catch {
+      try {
+        await fs.writeFile(pathOfFileOrFolder, "");
+        emitSuccess("createFileSuccess", "File created successfully");
+      } catch {
+        emitError("createFileError", "Error while creating file");
+      }
     }
   });
 
   socket.on("readFile", async ({ pathOfFileOrFolder }) => {
     try {
-      const response = await fs.readFile(pathOfFileOrFolder);
-      socket.emit("readFileSuccess", () => {
-        data: response.toString();
-      });
-    } catch (error) {
-        socket.emit("error", () => {
-            data: "Error while reading file";
-          });
+      const response = await fs.readFile(pathOfFileOrFolder, "utf-8");
+      socket.emit("readFileSuccess", { value: response.toString(), path: pathOfFileOrFolder });
+      // emitSuccess("readFileSuccess", {response});
+    } catch {
+      emitError("readFileError", "Error while reading file");
     }
   });
 
-  socket.on("readFile", async ({ pathOfFileOrFolder }) => {
+  socket.on("deleteFile", async ({ pathOfFileOrFolder }) => {
     try {
-      const response = await fs.unlink(pathOfFileOrFolder);
-      socket.emit("deleteFileSuccess", () => {
-        data: "file deletion successful";
-      });
-    } catch (error) {
-        socket.emit("error", () => {
-            data: "Error while deleting file";
-          });
+      await fs.unlink(pathOfFileOrFolder);
+      emitSuccess("deleteFileSuccess", "File deleted successfully");
+    } catch {
+      emitError("deleteFileError", "Error while deleting file");
     }
   });
+
   socket.on("createFolder", async ({ pathOfFileOrFolder }) => {
     try {
-      const response = await fs.mkdir(pathOfFileOrFolder);
-      socket.emit("createFolderSuccess", () => {
-        data: "Folder creation successful";
-      });
-    } catch (error) {
-        socket.emit("error", () => {
-            data: "Error while creating folder";
-          });
+      await fs.mkdir(pathOfFileOrFolder, { recursive: false });
+      emitSuccess("createFolderSuccess", "Folder created successfully");
+    } catch {
+      emitError("createFolderError", "Error while creating folder");
     }
   });
+
   socket.on("deleteFolder", async ({ pathOfFileOrFolder }) => {
     try {
-      const response = await fs.rmdir(pathOfFileOrFolder,{recursive:true});
-      socket.emit("deleteFolderSuccess", () => {
-        data: "Folder deletion successful";
-      });
-    } catch (error) {
-        socket.emit("error", () => {
-            data: "Error while deleting folder";
-          });
+      await fs.rmdir(pathOfFileOrFolder, { recursive: true });
+      emitSuccess("deleteFolderSuccess", "Folder deleted successfully");
+    } catch {
+      emitError("deleteFolderError", "Error while deleting folder");
     }
   });
 }

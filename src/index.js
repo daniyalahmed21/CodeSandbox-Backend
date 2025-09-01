@@ -3,9 +3,9 @@ import cors from "cors";
 import apiRouter from "./routes/index.js";
 import { PORT } from "./Configs/serverConfig.js";
 import chokidar from "chokidar";
-import path from "path";
-const http = require("http");
-const { Server } = require("socket.io");
+import http from "http";
+import { Server } from "socket.io";
+import handleEditorSocketEvents from "./handlers/editorHandler.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -23,9 +23,11 @@ app.use(cors());
 const editorNamespace = io.of("/editor");
 
 editorNamespace.on("connection", (socket) => {
-  const projectId = "1122";
+  const queryParams = socket.handshake.query;
+  const projectId = queryParams.projectId;
+  let watcher;
   if (projectId) {
-    var watcher = chokidar.watch(`./projects/${projectId}`, {
+    watcher = chokidar.watch(`./projects/${projectId}`, {
       ignored: (path) => path.includes("node_modules"),
       persistent: true,
       awaitWriteFinish: {
@@ -33,18 +35,24 @@ editorNamespace.on("connection", (socket) => {
       },
       ignoreInitial: true,
     });
+
+    watcher.on("all", (event, path) => {
+      console.log(event, path);
+      socket.emit("file-change", { event, path }); 
+    });
   }
 
-  watcher.on("all", (event, path) => {
-    console.log(event, path);
-  });
+  handleEditorSocketEvents(socket);
 
   socket.on("message", () => {
     console.log("editor namespace");
   });
 
   socket.on("disconnect", async () => {
-    await watcher.close();
+    if (watcher) {
+      await watcher.close();
+      console.log(`Watcher closed for project: ${projectId}`);
+    }
   });
 });
 
