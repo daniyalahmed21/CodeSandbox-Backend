@@ -1,6 +1,7 @@
 import fs from "fs/promises";
+import path from "path";
 
-export default function handleEditorSocketEvents(socket) {
+export default function handleEditorSocketEvents(socket, editorNamespace) {
   const emitSuccess = (event, message) => {
     socket.emit(event, { data: message });
   };
@@ -12,7 +13,10 @@ export default function handleEditorSocketEvents(socket) {
   socket.on("writeFile", async ({ data, pathOfFileOrFolder }) => {
     try {
       await fs.writeFile(pathOfFileOrFolder, data);
-      emitSuccess("writeFileSuccess", "File written successfully");
+      editorNamespace.emit("writeFileSuccess", {
+        data: "File written successfully",
+        path: pathOfFileOrFolder,
+      });
     } catch {
       emitError("writeFileError", "Error while writing file");
     }
@@ -35,8 +39,10 @@ export default function handleEditorSocketEvents(socket) {
   socket.on("readFile", async ({ pathOfFileOrFolder }) => {
     try {
       const response = await fs.readFile(pathOfFileOrFolder, "utf-8");
-      socket.emit("readFileSuccess", { value: response.toString(), path: pathOfFileOrFolder });
-      // emitSuccess("readFileSuccess", {response});
+      socket.emit("readFileSuccess", {
+        data: response.toString(),
+        path: pathOfFileOrFolder,
+      });
     } catch {
       emitError("readFileError", "Error while reading file");
     }

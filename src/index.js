@@ -42,7 +42,7 @@ editorNamespace.on("connection", (socket) => {
     });
   }
 
-  handleEditorSocketEvents(socket);
+  handleEditorSocketEvents(socket,editorNamespace);
 
   socket.on("message", () => {
     console.log("editor namespace");
