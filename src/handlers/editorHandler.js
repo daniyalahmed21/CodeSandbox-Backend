@@ -42,6 +42,7 @@ export default function handleEditorSocketEvents(socket, editorNamespace) {
       socket.emit("readFileSuccess", {
         data: response.toString(),
         path: pathOfFileOrFolder,
+        extension: path.extname(pathOfFileOrFolder).slice(1),
       });
     } catch {
       emitError("readFileError", "Error while reading file");

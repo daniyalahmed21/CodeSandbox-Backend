@@ -38,22 +38,12 @@ editorNamespace.on("connection", (socket) => {
 
     watcher.on("all", (event, path) => {
       console.log(event, path);
-      socket.emit("file-change", { event, path }); 
+      socket.emit("file-change", { event, path });
     });
   }
 
-  handleEditorSocketEvents(socket,editorNamespace);
+  handleEditorSocketEvents(socket, editorNamespace);
 
-  socket.on("message", () => {
-    console.log("editor namespace");
-  });
-
-  socket.on("disconnect", async () => {
-    if (watcher) {
-      await watcher.close();
-      console.log(`Watcher closed for project: ${projectId}`);
-    }
-  });
 });
 
 app.use("/api", apiRouter);
