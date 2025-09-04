@@ -2,11 +2,12 @@ import Dockerode from "dockerode";
 
 const docker = new Dockerode();
 
-export const handleContainerCreate = async (projectId, socket) => {
+export const handleContainerCreate = async (projectId, webSocketForServer, request, socket, head) => {
   console.log("Project id received for container create", projectId);
+
   try {
     const container = await docker.createContainer({
-      Image: "sandbox", // name given by us for the written dockerfile
+      Image: "sandbox",
       AttachStdin: true,
       AttachStdout: true,
       AttachStderr: true,
@@ -14,24 +15,13 @@ export const handleContainerCreate = async (projectId, socket) => {
       name: projectId,
       Tty: true,
       User: "sandbox",
-      Volumes: {
-        "/home/sandbox/app": {},
-      },
-      ExposedPorts: {
-        "5173/tcp": {},
-      },
+      Volumes: { "/home/sandbox/app": {} },
+      ExposedPorts: { "5173/tcp": {} },
       Env: ["HOST=0.0.0.0"],
       HostConfig: {
-        Binds: [
-          // mounting the project directory to the container
-          `${process.cwd()}/projects/${projectId}:/home/sandbox/app`,
-        ],
+        Binds: [`${process.cwd()}/projects/${projectId}:/home/sandbox/app`],
         PortBindings: {
-          "5173/tcp": [
-            {
-              HostPort: "0", // random port will be assigned by docker
-            },
-          ],
+          "5173/tcp": [{ HostPort: "0" }],
         },
       },
     });
@@ -39,8 +29,12 @@ export const handleContainerCreate = async (projectId, socket) => {
     console.log("Container created", container.id);
 
     await container.start();
-
     console.log("container started");
+
+    // properly upgrade
+    webSocketForServer.handleUpgrade(request, socket, head, (ws) => {
+      webSocketForServer.emit("connection", ws, request, container);
+    });
 
     container.exec(
       {
@@ -55,20 +49,16 @@ export const handleContainerCreate = async (projectId, socket) => {
           console.log("Error while creating exec", err);
           return;
         }
-        exec.start(
-          {
-            hijack: true,
-          },
-          (err, stream) => {
-            if (err) {
-              console.log("Error while starting exec", err);
-              return;
-            }
+        exec.start({ hijack: true }, (err, stream) => {
+          if (err) {
+            console.log("Error while starting exec", err);
+            return;
           }
-        );
+        });
       }
     );
   } catch (error) {
     console.log("Error while creating container", error);
   }
 };
+
