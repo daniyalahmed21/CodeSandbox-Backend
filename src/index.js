@@ -73,6 +73,6 @@ server.on("upgrade", (request, socket, head) => {
   }
 });
 
-webSocketForServer.on("connection", (req, socket, container) => {
+webSocketForServer.on("connection", (ws, request, container) => {
   console.log("WebSocket connection established for container", container.id);
 });
