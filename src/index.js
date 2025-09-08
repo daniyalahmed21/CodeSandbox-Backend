@@ -24,16 +24,30 @@ app.use(cors());
 
 const editorNamespace = io.of("/editor");
 
-editorNamespace.on("connection", (socket) => {
+editorNamespace.on("connection", async (socket) => {
   const queryParams = socket.handshake.query;
   const projectId = queryParams.projectId;
   let watcher;
+  
   if (projectId) {
+    // Ensure container is ready and dev server is started
+    try {
+      const { ensureContainerReady } = await import("./containers/handleContainerCreate.js");
+      const { container, hostPort } = await ensureContainerReady(projectId);
+      
+      if (container && hostPort) {
+        console.log(`Container ready for project ${projectId} on port ${hostPort}`);
+        socket.emit("containerReady", { port: hostPort });
+      }
+    } catch (error) {
+      console.log("Error ensuring container ready:", error);
+    }
+
     watcher = chokidar.watch(`./projects/${projectId}`, {
       ignored: (path) => path.includes("node_modules"),
       persistent: true,
       awaitWriteFinish: {
-        stabilityThreshold: 2000,
+        stabilityThreshold: 1000, // Reduced for faster updates
       },
       ignoreInitial: true,
     });
@@ -41,6 +55,8 @@ editorNamespace.on("connection", (socket) => {
     watcher.on("all", (event, path) => {
       console.log(event, path);
       socket.emit("file-change", { event, path });
+      // Also emit to namespace for broader notifications
+      editorNamespace.emit("file-change", { event, path, projectId });
     });
   }
 

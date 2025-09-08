@@ -10,6 +10,18 @@ export default function handleEditorSocketEvents(socket, editorNamespace) {
     socket.emit(event || "error", { data: message });
   };
 
+  // Handle port requests
+  socket.on("getPort", async ({ containerName }) => {
+    try {
+      const { getContainerPort } = await import("../containers/handleContainerCreate.js");
+      const port = await getContainerPort(containerName);
+      socket.emit("portResponse", { port });
+    } catch (error) {
+      console.log("Error getting port:", error);
+      socket.emit("portResponse", { port: null });
+    }
+  });
+
   socket.on("writeFile", async ({ data, pathOfFileOrFolder }) => {
     try {
       await fs.writeFile(pathOfFileOrFolder, data);

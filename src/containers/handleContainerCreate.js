@@ -102,3 +102,98 @@ export const handleContainerCreate = async (projectId, webSocketForServer, reque
   }
 };
 
+
+export const getContainerPort = async (containerName) => {
+  try {
+    const container = docker.getContainer(containerName);
+    const info = await container.inspect();
+    const ports = info?.NetworkSettings?.Ports;
+    if (ports && ports["5173/tcp"] && ports["5173/tcp"][0]?.HostPort) {
+      return ports["5173/tcp"][0].HostPort;
+    }
+    return null;
+  } catch (error) {
+    console.log("Error fetching container port", error);
+    return null;
+  }
+};
+
+export const ensureContainerReady = async (projectId) => {
+  try {
+    let container;
+    try {
+      const existing = docker.getContainer(projectId);
+      const info = await existing.inspect();
+      container = existing;
+      if (info.State.Status !== "running") {
+        await container.start();
+      }
+    } catch (_) {
+      container = await docker.createContainer({
+        Image: "sandbox",
+        AttachStdin: true,
+        AttachStdout: true,
+        AttachStderr: true,
+        Cmd: ["/bin/bash"],
+        name: projectId,
+        Tty: true,
+        User: "sandbox",
+        Volumes: { "/home/sandbox/app": {} },
+        ExposedPorts: { "5173/tcp": {} },
+        Env: ["HOST=0.0.0.0"],
+        HostConfig: {
+          Binds: [`${process.cwd()}/projects/${projectId}:/home/sandbox/app`],
+          PortBindings: {
+            "5173/tcp": [{ HostPort: "0" }],
+          },
+        },
+      });
+      await container.start();
+    }
+
+    const info = await container.inspect();
+    const ports = info?.NetworkSettings?.Ports;
+    const hostPort = ports && ports["5173/tcp"] && ports["5173/tcp"][0]?.HostPort;
+
+    // Attempt to start dev server automatically (idempotent)
+    try {
+      await startDevServer(container);
+    } catch (e) {
+      console.log("Dev server start attempt failed (may already be running)");
+    }
+    return { container, hostPort: hostPort || null };
+  } catch (error) {
+    console.log("Error ensuring container ready", error);
+    return { container: null, hostPort: null };
+  }
+};
+
+export const startDevServer = async (container) => {
+  return new Promise((resolve, reject) => {
+    container.exec(
+      {
+        Cmd: [
+          "bash",
+          "-lc",
+          "cd /home/sandbox/app && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort"
+        ],
+        User: "sandbox",
+        AttachStdin: false,
+        AttachStdout: false,
+        AttachStderr: false,
+        Tty: false,
+      },
+      (err, exec) => {
+        if (err) {
+          return reject(err);
+        }
+        exec.start({ Detach: true }, (startErr) => {
+          if (startErr) {
+            return reject(startErr);
+          }
+          resolve();
+        });
+      }
+    );
+  });
+};
