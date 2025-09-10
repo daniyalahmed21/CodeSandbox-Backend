@@ -1,5 +1,5 @@
 import fs from "fs/promises";
-import { ensureContainerReady, getContainerPort } from "../containers/handleContainerCreate.js";
+import { getContainerPort } from "../containers/handleContainerCreate.js";
 
 export const handleEditorSocketEvents = (socket, editorNamespace) => {
     socket.on("writeFile", async ({ data, pathToFileOrFolder }) => {
@@ -100,11 +100,7 @@ export const handleEditorSocketEvents = (socket, editorNamespace) => {
     });
 
     socket.on("getPort", async ({ containerName }) => {
-        let port = await getContainerPort(containerName);
-        if(!port) {
-            const { hostPort } = await ensureContainerReady(containerName);
-            port = hostPort;
-        }
+        const port = await getContainerPort(containerName);
         console.log("port data", port);
         socket.emit("getPortSuccess", {
             port: port,

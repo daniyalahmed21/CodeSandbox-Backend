@@ -1,26 +1,17 @@
-import {
-  getProjectTreeService,
-  ProjectService,
-} from "../services/projectService.js";
+import { createProjectService, getProjectTreeService } from "../service/projectService.js";
 
-export async function createProjectController(req, res) {
-  try {
-    const projectId = await ProjectService();
-    res.json({
-      message: "Project Created",
-      projectId,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to create project" });
-  }
+export const createProjectController = async (req, res) => {
+
+    const projectId = await createProjectService();
+
+    return res.json({ message: 'Project created', data: projectId });
 }
 
-export async function getProjectTree(req, res) {
-  const tree = await getProjectTreeService(req.params.id);
-  res.status(200).json({
-    data: tree,
-    success: true,
-    message: "successfully created tree",
-  });
+export const getProjectTree = async (req, res) => {
+    const tree = await getProjectTreeService(req.params.projectId);
+    return res.status(200).json({
+        data: tree,
+        success: true,
+        message: "Successfully fetched the tree"
+    })
 }
